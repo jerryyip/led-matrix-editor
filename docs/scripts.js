@@ -8,6 +8,10 @@ $(function () {
 
     var $leds, $cols, $rows;
 
+    var $global_now_color;
+    //  = document.createElement("red-led");
+    // var $color_list = document.createElement("red-leds yellow-leds green-leds blue-leds white-leds black-leds");
+
     var generator = {
         tableCols: function () {
             var out = ['<table id="cols-list"><tr>'];
@@ -30,10 +34,33 @@ $(function () {
             for (var i = 1; i < 9; i++) {
                 out.push('<tr>');
                 for (var j = 1; j < 9; j++) {
-                    out.push('<td class="item" data-row="' + i + '" data-col="' + j + '"></td>');
+                    out.push('<td class="item black-leds" data-row="' + i + '" data-col="' + j + '" data-color="#ffffff"></td>');
                 }
                 out.push('</tr>');
             }
+            out.push('</table>');
+            return out.join('');
+        },
+        colorPicker: function() {
+            var out = ['<table id="color-picker">'];
+            var count = 0;
+            // for (var i= 0;i < 16;i++) {
+            //     out.push('<tr>');
+            //     for (var j = 0; j < 16; j++) {
+            //         out.push('<td class="item color-' + count + '"></td>');
+            //         count++;
+            //     }
+            //     out.push('</tr>');
+            // }
+            out.push('<tr>');
+            for (var i=0;i<256;i++)
+            {
+                
+                out.push('<td class="picker color-' + count + '" color-number="' + count +'" ></td>');
+                count++;
+                
+            }
+            out.push('</tr>');
             out.push('</table>');
             return out.join('');
         }
@@ -96,6 +123,27 @@ $(function () {
             out.push('const int IMAGES_LEN = sizeof(IMAGES)/8;\n');
             return out.join('');
         },
+        patternsToCodeUint8Array: function (patterns) {
+            var out = ['const uint8_t IMAGES[][8] = {\n'];
+            for (var i = 0; i < patterns.length; i++) {
+                out.push('{\n');
+                for (var j = 7; j >= 0; j--) {
+                    var byte = patterns[i].substr(2 * j, 2);
+                    // byte = parseInt(byte, 16).toString(2);
+                    // byte = ('00000000' + byte).substr(-8);
+                    // byte = byte.split('').reverse().join('');
+                    out.push('  0x');
+                    out.push(byte);
+                    out.push(', ');
+                }
+                out.pop();
+                out.push('\n}');
+                out.push(',');
+            }
+            out.pop();
+            out.push('};\n');
+            return out.join('');
+        },
         fixPattern: function (pattern) {
             pattern = pattern.replace(/[^0-9a-fA-F]/g, '0');
             return ('0000000000000000' + pattern).substr(-16);
@@ -115,19 +163,52 @@ $(function () {
 
     function ledsToHex() {
         var out = [];
+        
         for (var i = 1; i < 9; i++) {
             var byte = [];
+            // byte += '{';
             for (var j = 1; j < 9; j++) {
-                var active = $leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('active');
-                byte.push(active ? '1' : '0');
+                // var active = $leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('active');
+                // byte.push(active ? '1' : '0');
+                byte.push(getColors(i,j));
+                // byte += getColors(i,j);
+                // byte += ',';
             }
-            byte.reverse();
-            byte = parseInt(byte.join(''), 2).toString(16);
-            byte = ('0' + byte).substr(-2);
+            // byte -= ',';
+            // byte += '}, ';
+            // byte.push('}, ');
+            // byte.reverse();颠倒顺序
+            // byte = parseInt(byte.join(''), 16).toString(16);
+            // byte = ('0' + byte).substr(-2);
+            // byte = byte.substr(0, -2);
             out.push(byte);
         }
-        out.reverse();
-        $hexInput.val(out.join(''));
+        // out.reverse();
+        $hexInput.val(out);
+    }
+
+    function getColors(i, j) {
+        var temp_color;
+        if ($leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('red-leds')) {
+            temp_color = '0x0';
+        }
+        else if ($leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('yellow-leds')) {
+            temp_color = '0xd4';
+        }
+        else if ($leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('green-leds')) {
+            temp_color = '0xaa';
+        }
+        else if ($leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('blue-leds')) {
+            temp_color = '0x55';
+        }
+        else if ($leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('white-leds')) {
+            temp_color = '0xfe';
+        }
+        else if ($leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('black-leds')) {
+            temp_color = '0xff';
+        }
+        else temp_color = '0xff';
+        return temp_color;
     }
 
     function hexInputToLeds() {
@@ -149,7 +230,7 @@ $(function () {
         if (patterns.length) {
             var code;
             if ($('#images-as-byte-arrays').prop("checked")) {
-                code = converter.patternsToCodeBytesArray(patterns);
+                code = converter.patternsToCodeUint8Array(patterns);
             } else {
                 code = converter.patternsToCodeUint64Array(patterns);
             }
@@ -215,18 +296,30 @@ $(function () {
     $('#cols-container').append($(generator.tableCols()));
     $('#rows-container').append($(generator.tableRows()));
     $('#leds-container').append($(generator.tableLeds()));
+    $('#color-container').append($(generator.colorPicker()));
 
     $cols = $('#cols-list');
     $rows = $('#rows-list');
     $leds = $('#leds-matrix');
+    $picker = $('#color-picker');
+
+    // $picker.find('.item').mousedown( function () {
+    //     $(this).removeClass().addClass(global_now_color).addClass('item');
+    // });
 
     $leds.find('.item').mousedown(function () {
-        $(this).toggleClass('active');
+        // $(this).toggleClass('active');
+        $(this).removeClass().addClass("color-"+global_now_color.toString()).addClass('item');
+        // 改变颜色, 存颜色
+        // 如何拿到现在的颜色
+        // matrix 的颜色如何修改
+
         ledsToHex();
     });
 
     $('#invert-button').click(function () {
-        $leds.find('.item').toggleClass('active');
+        // $leds.find('.item').toggleClass('active');
+        $leds.find('.item').removeClass('red-leds yellow-leds green-leds blue-leds white-leds black-leds').addClass('black-leds');
         ledsToHex();
     });
 
@@ -355,7 +448,8 @@ $(function () {
 
     $('#matrix-toggle').mousedown(function () {
         var col = $(this).attr('data-col');
-        $leds.find('.item').toggleClass('active', $leds.find('.item.active').length != 64);
+        // $leds.find('.item').toggleClass('active', $leds.find('.item.active').length != 64);
+        $leds.find('.item').removeClass('red-leds yellow-leds green-leds blue-leds white-leds').addClass(themeName);
         ledsToHex();
     });
 
@@ -371,12 +465,18 @@ $(function () {
 
     $('.leds-case').click(function () {
         var themeName = $(this).attr('data-leds-theme');
+        global_now_color = $(this).attr('data-leds-theme');
         setLedsTheme(themeName);
         Cookies.set('leds-theme', themeName, {path: ''});
     });
 
+    $('.picker').click(function () {
+        global_now_color = $(this).attr('color-number');
+        $body.find('#color-show').removeClass().addClass("color-"+global_now_color.toString());
+    });
+
     function setLedsTheme(themeName) {
-        $body.removeClass('red-leds yellow-leds green-leds blue-leds white-leds').addClass(themeName);
+        $body.removeClass().addClass(themeName);
     }
 
     function setPageTheme(themeName) {
