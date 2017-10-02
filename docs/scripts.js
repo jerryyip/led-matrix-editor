@@ -5,10 +5,10 @@ $(function () {
     var $insertButton = $('#insert-button');
     var $deleteButton = $('#delete-button');
     var $updateButton = $('#update-button');
+    var $leds = $('#leds-matrix');
+    var $cols, $rows;
 
-    var $leds, $cols, $rows;
-
-    var $global_now_color;
+    var global_now_color = 0;
     //  = document.createElement("red-led");
     // var $color_list = document.createElement("red-leds yellow-leds green-leds blue-leds white-leds black-leds");
 
@@ -34,7 +34,7 @@ $(function () {
             for (var i = 1; i < 9; i++) {
                 out.push('<tr>');
                 for (var j = 1; j < 9; j++) {
-                    out.push('<td class="item black-leds" data-row="' + i + '" data-col="' + j + '" data-color="#ffffff"></td>');
+                    out.push('<td class="item colors-255" data-row="' + i + '" data-col="' + j + '" data-color=255></td>');
                 }
                 out.push('</tr>');
             }
@@ -69,17 +69,21 @@ $(function () {
     var converter = {
         patternToFrame: function (pattern) {
             var out = ['<table class="frame" data-hex="' + pattern + '">'];
-            for (var i = 1; i < 9; i++) {
-                var byte = pattern.substr(-2 * i, 2);
-                byte = parseInt(byte, 16);
-
+            for (var i = 0; i < 8; i++) {
+                // var byte = pattern.substr(-2 * i, 2);
+                // byte = parseInt(byte, 16);
+                var uint64 = pattern.substr(16*i,16);
                 out.push('<tr>');
                 for (var j = 0; j < 8; j++) {
-                    if ((byte & 1 << j)) {
-                        out.push('<td class="item active"></td>');
-                    } else {
-                        out.push('<td class="item"></td>');
-                    }
+                    // if ((byte & 1 << j)) {
+                    //     out.push('<td class="item active"></td>');
+                    // } else {
+                    //     out.push('<td class="item"></td>');
+                    // }
+                    var uint8 = uint64.substr(2*j,2);
+                    // color = 0~255
+                    var color = parseInt(uint8, 16);
+                    out.push('<td class="item color-'+color+'"></td>');
                 }
                 out.push('</tr>');
             }
@@ -90,14 +94,24 @@ $(function () {
             var out = ['const uint64_t IMAGES[] = {\n'];
 
             for (var i = 0; i < patterns.length; i++) {
-                out.push('  0x');
-                out.push(patterns[i]);
+                // out.push('  0x');
+                // out.push(patterns[i]);
+                // out.push(',\n');
+                // 128 characters => 64bytes => 8 * uint64_t
+                out.push(' {\n');
+                for (var j = 0; j < 8; j++) {
+                    var uint64 = patterns[i].substr(j*16,16);
+                    out.push('  0x');
+                    out.push(uint64);
+                    out.push(',\n');
+                }
+                out.pop();
+                out.push('\n }');
                 out.push(',\n');
             }
             out.pop();
             out.push('\n};\n');
             out.push('const int IMAGES_LEN = sizeof(IMAGES)/8;\n');
-
             return out.join('');
         },
         patternsToCodeBytesArray: function (patterns) {
@@ -145,8 +159,11 @@ $(function () {
             return out.join('');
         },
         fixPattern: function (pattern) {
-            pattern = pattern.replace(/[^0-9a-fA-F]/g, '0');
-            return ('0000000000000000' + pattern).substr(-16);
+            // pattern = pattern.replace(/[^0-9a-fA-F]/g, '0');
+            pattern = pattern.replace(/0x/g, '');
+            pattern = pattern.replace(/,/g, '');
+            // return ('0000000000000000' + pattern).substr(-16);
+            return pattern;
         },
         fixPatterns: function (patterns) {
             for (var i = 0; i < patterns.length; i++) {
@@ -188,38 +205,32 @@ $(function () {
     }
 
     function getColors(i, j) {
-        var temp_color;
-        if ($leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('red-leds')) {
-            temp_color = '0x0';
-        }
-        else if ($leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('yellow-leds')) {
-            temp_color = '0xd4';
-        }
-        else if ($leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('green-leds')) {
-            temp_color = '0xaa';
-        }
-        else if ($leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('blue-leds')) {
-            temp_color = '0x55';
-        }
-        else if ($leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('white-leds')) {
-            temp_color = '0xfe';
-        }
-        else if ($leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('black-leds')) {
-            temp_color = '0xff';
-        }
-        else temp_color = '0xff';
-        return temp_color;
+        var temp_color = $leds.find('[data-row=' + i + '][data-col=' + j + '] ').attr('data-color');
+        var colors_hex = [];
+        colors_hex.push('0x');
+        colors_hex.push(('00' + parseInt(temp_color, 10).toString(16)).substr(-2));
+        return colors_hex.join('');
     }
 
     function hexInputToLeds() {
         var val = getInputHexValue();
+        // val is string with 128 characters, 2 characters mean 1 color
         for (var i = 1; i < 9; i++) {
-            var byte = val.substr(-2 * i, 2);
+            // var byte = val.substr(-2 * i, 2);
 
-            byte = parseInt(byte, 16);
+            // byte = parseInt(byte, 16);
             for (var j = 1; j < 9; j++) {
-                var active = !!(byte & 1 << (j - 1));
-                $leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').toggleClass('active', active);
+                // var active = !!(byte & 1 << (j - 1));
+                var temp_color = val.substr(((i-1)*16+(j-1)*2), 2);
+                temp_color = parseInt(temp_color, 16).toString();
+                $leds.find('[data-row=' + i + '][data-col=' + j + '] ').attr('data-color', temp_color);
+                if ($leds.find('[data-row=' + i + '][data-col=' + j + '] ').hasClass('active')) {
+                    $leds.find('[data-row=' + i + '][data-col=' + j + '] ').removeClass().addClass('item active color-'+temp_color);                    
+                }
+                else {
+                    $leds.find('[data-row=' + i + '][data-col=' + j + '] ').removeClass().addClass('item color-'+temp_color);                    
+                }
+                // $leds.find('[data-row=' + i + '][data-col=' + j + '] ').toggleClass('active', active);
             }
         }
     }
@@ -264,17 +275,45 @@ $(function () {
             $frames.append(frame);
         }
         frame.addClass('selected');
-        $hexInput.val(frame.attr('data-hex'));
+        // $hexInput.val(frame.attr('data-hex'));
+        // hexinput不能直接拿data-hex的值，需要加0x和，
+        var out=[];
+        var data=frame.attr('data-hex');
+        for (var i=0;i<8;i++){
+            var uint64 = data.substr(16*i,16);
+            for (var j=0;j<8;j++) {
+                var uint8 = uint64.substr(2*j,2);
+                out.push('0x');
+                out.push(uint8);
+                out.push(',');
+            }
+        }
+        out.pop();
+        $hexInput.val(out.join(''));
         printArduinoCode(patterns);
         hexInputToLeds();
     }
 
     function getInputHexValue() {
+        // console.log(converter.fixPattern($hexInput.val()));
         return converter.fixPattern($hexInput.val());
     }
 
     function onFrameClick() {
-        $hexInput.val($(this).attr('data-hex'));
+        // $hexInput.val($(this).attr('data-hex'));
+        var out=[];
+        var data=$(this).attr('data-hex');
+        for (var i=0;i<8;i++){
+            var uint64 = data.substr(16*i,16);
+            for (var j=0;j<8;j++) {
+                var uint8 = uint64.substr(2*j,2);
+                out.push('0x');
+                out.push(uint8);
+                out.push(',');
+            }
+        }
+        out.pop();
+        $hexInput.val(out.join(''));
         processToSave($(this));
         hexInputToLeds();
     }
@@ -308,12 +347,16 @@ $(function () {
     // });
 
     $leds.find('.item').mousedown(function () {
-        // $(this).toggleClass('active');
-        $(this).removeClass().addClass("color-"+global_now_color.toString()).addClass('item');
-        // 改变颜色, 存颜色
-        // 如何拿到现在的颜色
-        // matrix 的颜色如何修改
-
+        $(this).toggleClass('active');
+        if ($(this).hasClass('active')) {
+            $(this).removeClass().addClass("color-"+global_now_color.toString()).addClass('item active');
+            $(this).attr("data-color", global_now_color.toString());
+            // $(this).data-color = global_now_color.toString();
+        }
+        else {
+            $(this).removeClass().addClass('color-255 item');
+            $(this).attr("data-color", "255");
+        }
         ledsToHex();
     });
 
@@ -357,12 +400,15 @@ $(function () {
 
         var out = [];
         for (var i = 0; i < 8; i++) {
-            var byte = val.substr(i * 2, 2);
-            byte = parseInt(byte, 16);
-            byte >>= 1;
-            byte = byte.toString(16);
-            byte = ('0' + byte).substr(-2);
-            out.push(byte);
+            // 拿一行颜色
+            var uint64 = val.substr(i * 16, 16);
+            // 左移一位
+            uint64 = (uint64+'00').substr(-8);
+            // uint64 = parseInt(uint64, 16);
+            // byte >>= 1;
+            // byte = byte.toString(16);
+            // byte = ('0' + byte).substr(-2);
+            out.push(uint64);
         }
         val = out.join('');
         $hexInput.val(val);
@@ -535,8 +581,10 @@ $(function () {
         setLedsTheme(ledsTheme);
     }
 
-    var pageTheme = Cookies.get('page-theme') || 'circuit-theme';
+    // var pageTheme = Cookies.get('page-theme') || 'circuit-theme';
+    var pageTheme = 'plain-theme';
 
     setPageTheme(pageTheme);
+    ledsToHex();
 
 });

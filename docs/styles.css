@@ -1,5 +1,5 @@
 body {
-    background: #eee;
+    background: #EEEEEE;
     user-select: none;
     -webkit-user-select: none;
 }
@@ -18,9 +18,9 @@ body {
 }
 
 #color-picker .picker{
-    width: 3px;
+    width: 5px;
     min-width: 3px;
-    max-width: 3px;
+    max-width: 5px;
 
     height: 25px;
     min-height: 25px;
@@ -52,7 +52,7 @@ body {
 }
 
 #leds-matrix {
-    background-color: #333;
+    background-color: #000000;
     box-shadow: 1px 1px 10px #333;
 }
 
@@ -270,7 +270,7 @@ body.black-leds #leds-matrix .item.black-leds {
     height: 7px;
     border-radius: 50%;
     box-shadow: inset 0 0 1px #333333;
-    background: #808080;
+    /* background: #808080; */
 }
 
 #frames .frame.selected {
