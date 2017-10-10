@@ -91,71 +91,48 @@ $(function () {
             return out.join('');
         },
         patternsToCodeUint64Array: function (patterns) {
-            var out = ['const uint64_t IMAGES[] = {\n'];
-
+            var out = ['uint64_t example[] = {\n\n'];
             for (var i = 0; i < patterns.length; i++) {
-                // out.push('  0x');
-                // out.push(patterns[i]);
-                // out.push(',\n');
                 // 128 characters => 64bytes => 8 * uint64_t
-                out.push(' {\n');
                 for (var j = 0; j < 8; j++) {
                     var uint64 = patterns[i].substr(j*16,16);
                     out.push('  0x');
                     out.push(uint64);
                     out.push(',\n');
                 }
-                out.pop();
-                out.push('\n }');
-                out.push(',\n');
+                out.push(' \n');
             }
+            out.pop();
             out.pop();
             out.push('\n};\n');
             out.push('const int IMAGES_LEN = sizeof(IMAGES)/8;\n');
             return out.join('');
         },
-        patternsToCodeBytesArray: function (patterns) {
-            var out = ['const byte IMAGES[][8] = {\n'];
-
-            for (var i = 0; i < patterns.length; i++) {
-                out.push('{\n');
-                for (var j = 7; j >= 0; j--) {
-                    var byte = patterns[i].substr(2 * j, 2);
-                    byte = parseInt(byte, 16).toString(2);
-                    byte = ('00000000' + byte).substr(-8);
-                    byte = byte.split('').reverse().join('');
-                    out.push('  B');
-                    out.push(byte);
-                    out.push(',\n');
-                }
-                out.pop();
-                out.push('\n}');
-                out.push(',');
-            }
-            out.pop();
-            out.push('};\n');
-            out.push('const int IMAGES_LEN = sizeof(IMAGES)/8;\n');
-            return out.join('');
-        },
         patternsToCodeUint8Array: function (patterns) {
-            var out = ['const uint8_t IMAGES[][8] = {\n'];
+            var out = ['uint8_t example[] = {\n'];
             for (var i = 0; i < patterns.length; i++) {
-                out.push('{\n');
-                for (var j = 7; j >= 0; j--) {
-                    var byte = patterns[i].substr(2 * j, 2);
-                    // byte = parseInt(byte, 16).toString(2);
-                    // byte = ('00000000' + byte).substr(-8);
-                    // byte = byte.split('').reverse().join('');
-                    out.push('  0x');
-                    out.push(byte);
-                    out.push(', ');
+                // 128 characters => 64bytes = 64 * uint8_t
+                // out.push('  {\n');            
+                for (var j = 0; j < 8; j++) {
+                    var uint8x8 = patterns[i].substr(j*16,16);
+                    out.push('    ');
+                    for (var k = 0; k<8;k++){
+                        var uint8 = uint8x8.substr(k*2,2);
+                        out.push('0x');
+                        out.push(uint8);
+                        out.push(',');
+                    }
+                    out.push(' \n');
                 }
-                out.pop();
-                out.push('\n}');
-                out.push(',');
+                // out.pop();
+                // out.pop();
+                out.push(' \n');
+                // out.push(',');
             }
             out.pop();
-            out.push('};\n');
+            out.pop();
+            out.pop();
+            out.push('\n};\n');
             return out.join('');
         },
         fixPattern: function (pattern) {
@@ -279,6 +256,7 @@ $(function () {
         // hexinput不能直接拿data-hex的值，需要加0x和，
         var out=[];
         var data=frame.attr('data-hex');
+        if (data === '') data = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
         for (var i=0;i<8;i++){
             var uint64 = data.substr(16*i,16);
             for (var j=0;j<8;j++) {
@@ -360,72 +338,108 @@ $(function () {
         ledsToHex();
     });
 
-    $('#invert-button').click(function () {
-        // $leds.find('.item').toggleClass('active');
-        $leds.find('.item').removeClass('red-leds yellow-leds green-leds blue-leds white-leds black-leds').addClass('black-leds');
-        ledsToHex();
-    });
 
     $('#shift-up-button').click(function () {
-        var val = '00' + getInputHexValue().substr(0, 14);
-        $hexInput.val(val);
+        var val = getInputHexValue();
+        var out = [];
+        for (var i = 1; i < 8; i++) {
+            // 从第二行颜色开始拿7行，放进out
+            var uint64 = val.substr(i * 16, 16);
+            out.push(uint64);
+        }
+        out.push('ffffffffffffffff');
+        val = out.join('');
+        $hexInput.val(dataToPatterns(val));
         hexInputToLeds();
     });
 
     $('#shift-down-button').click(function () {
-        var val = getInputHexValue().substr(2, 14) + '00';
-        $hexInput.val(val);
+        var val = getInputHexValue();
+        var out = [];
+        out.push('ffffffffffffffff');
+        for (var i = 0; i < 7; i++) {
+            // 从第一行颜色开始拿7行，放进out
+            var uint64 = val.substr(i * 16, 16);
+            out.push(uint64);
+        }
+        val = out.join('');
+        $hexInput.val(dataToPatterns(val));
         hexInputToLeds();
     });
 
     $('#shift-right-button').click(function () {
         var val = getInputHexValue();
-
         var out = [];
         for (var i = 0; i < 8; i++) {
-            var byte = val.substr(i * 2, 2);
-            byte = parseInt(byte, 16);
-            byte <<= 1;
-            byte = byte.toString(16);
-            byte = ('0' + byte).substr(-2);
-            out.push(byte);
+            // 拿一行颜色
+            var uint64 = val.substr(i * 16, 16);
+            // 右移一位
+            uint64 = ('ff'+ uint64).substr(0,16);
+            out.push(uint64);
         }
         val = out.join('');
-        $hexInput.val(val);
+        $hexInput.val(dataToPatterns(val));
         hexInputToLeds();
     });
 
     $('#shift-left-button').click(function () {
         var val = getInputHexValue();
-
         var out = [];
         for (var i = 0; i < 8; i++) {
             // 拿一行颜色
             var uint64 = val.substr(i * 16, 16);
             // 左移一位
-            uint64 = (uint64+'00').substr(-8);
-            // uint64 = parseInt(uint64, 16);
-            // byte >>= 1;
-            // byte = byte.toString(16);
-            // byte = ('0' + byte).substr(-2);
+            uint64 = (uint64+'ff').substr(-16);
             out.push(uint64);
         }
         val = out.join('');
-        $hexInput.val(val);
+        $hexInput.val(dataToPatterns(val));
         hexInputToLeds();
     });
 
+
+    function dataToPatterns(data) {
+        var out = [];
+        for (var i=0;i<64;i++){
+            out.push('0x');
+            out.push(data.substr(i*2,2));
+            out.push(',');
+        }
+        out.pop();
+        return out.join('');
+    }
+
     $cols.find('.item').mousedown(function () {
         var col = $(this).attr('data-col');
-        $leds.find('.item[data-col=' + col + ']').toggleClass('active',
-            $leds.find('.item[data-col=' + col + '].active').length != 8);
+        // $leds.find('.item[data-col=' + col + ']').toggleClass('active',
+        //     $leds.find('.item[data-col=' + col + '].active').length != 8);
+        $leds.find('.item[data-col=' + col + ']').toggleClass('active');
+        if ($leds.find('.item[data-col=' + col + ']').hasClass('active')) {
+            $leds.find('.item[data-col=' + col + ']').removeClass().addClass("color-"+global_now_color.toString()).addClass('item active');
+            $leds.find('.item[data-col=' + col + ']').attr("data-color", global_now_color.toString());
+            // $(this).data-color = global_now_color.toString();
+        }
+        else {
+            $leds.find('.item[data-col=' + col + ']').removeClass().addClass('color-255 item');
+            $leds.find('.item[data-col=' + col + ']').attr("data-color", "255");
+        }
         ledsToHex();
     });
 
     $rows.find('.item').mousedown(function () {
         var row = $(this).attr('data-row');
-        $leds.find('.item[data-row=' + row + ']').toggleClass('active',
-            $leds.find('.item[data-row=' + row + '].active').length != 8);
+        // $leds.find('.item[data-row=' + row + ']').toggleClass('active',
+        //     $leds.find('.item[data-row=' + row + '].active').length != 8);
+        $leds.find('.item[data-row=' + row + ']').toggleClass('active');
+        if ($leds.find('.item[data-row=' + row + ']').hasClass('active')) {
+            $leds.find('.item[data-row=' + row + ']').removeClass().addClass("color-"+global_now_color.toString()).addClass('item active');
+            $leds.find('.item[data-row=' + row + ']').attr("data-color", global_now_color.toString());
+            // $(this).data-color = global_now_color.toString();
+        }
+        else {
+            $leds.find('.item[data-row=' + row + ']').removeClass().addClass('color-255 item');
+            $leds.find('.item[data-row=' + row + ']').attr("data-color", "255");
+        }
         ledsToHex();
     });
 
@@ -493,9 +507,16 @@ $(function () {
     });
 
     $('#matrix-toggle').mousedown(function () {
-        var col = $(this).attr('data-col');
-        // $leds.find('.item').toggleClass('active', $leds.find('.item.active').length != 64);
-        $leds.find('.item').removeClass('red-leds yellow-leds green-leds blue-leds white-leds').addClass(themeName);
+        $leds.find('.item').toggleClass('active');
+        if ($leds.find('.item').hasClass('active')) {
+            $leds.find('.item').removeClass().addClass("color-"+global_now_color.toString()).addClass('item active');
+            $leds.find('.item').attr("data-color", global_now_color.toString());
+            // $(this).data-color = global_now_color.toString();
+        }
+        else {
+            $leds.find('.item').removeClass().addClass('color-255 item');
+            $leds.find('.item').attr("data-color", "255");
+        }
         ledsToHex();
     });
 
@@ -519,6 +540,7 @@ $(function () {
     $('.picker').click(function () {
         global_now_color = $(this).attr('color-number');
         $body.find('#color-show').removeClass().addClass("color-"+global_now_color.toString());
+        $body.find('#color-word').html('color you pick: 0x'+ ('00' + parseInt(global_now_color, 10).toString(16)).substr(-2));
     });
 
     function setLedsTheme(themeName) {
