@@ -9,8 +9,6 @@ $(function () {
     var $cols, $rows;
 
     var global_now_color = 0;
-    //  = document.createElement("red-led");
-    // var $color_list = document.createElement("red-leds yellow-leds green-leds blue-leds white-leds black-leds");
 
     var generator = {
         tableCols: function () {
@@ -41,45 +39,30 @@ $(function () {
             out.push('</table>');
             return out.join('');
         },
+        // 颜色选择器
         colorPicker: function() {
             var out = ['<table id="color-picker">'];
             var count = 0;
-            // for (var i= 0;i < 16;i++) {
-            //     out.push('<tr>');
-            //     for (var j = 0; j < 16; j++) {
-            //         out.push('<td class="item color-' + count + '"></td>');
-            //         count++;
-            //     }
-            //     out.push('</tr>');
-            // }
             out.push('<tr>');
             for (var i=0;i<256;i++)
             {
-                
                 out.push('<td class="picker color-' + count + '" color-number="' + count +'" ></td>');
                 count++;
-                
             }
             out.push('</tr>');
             out.push('</table>');
             return out.join('');
         }
     };
-
+    // 转换器
     var converter = {
+        // pattern: 64位hex数据; frame: 略缩图
         patternToFrame: function (pattern) {
             var out = ['<table class="frame" data-hex="' + pattern + '">'];
             for (var i = 0; i < 8; i++) {
-                // var byte = pattern.substr(-2 * i, 2);
-                // byte = parseInt(byte, 16);
                 var uint64 = pattern.substr(16*i,16);
                 out.push('<tr>');
                 for (var j = 0; j < 8; j++) {
-                    // if ((byte & 1 << j)) {
-                    //     out.push('<td class="item active"></td>');
-                    // } else {
-                    //     out.push('<td class="item"></td>');
-                    // }
                     var uint8 = uint64.substr(2*j,2);
                     // color = 0~255
                     var color = parseInt(uint8, 16);
@@ -90,14 +73,19 @@ $(function () {
             out.push('</table>');
             return out.join('');
         },
+        // patter: 64位hex数据; code: arduino uint64_t 数组, 大端模式显示
         patternsToCodeUint64Array: function (patterns) {
             var out = ['uint64_t example[] = {\n\n'];
             for (var i = 0; i < patterns.length; i++) {
                 // 128 characters => 64bytes => 8 * uint64_t
                 for (var j = 0; j < 8; j++) {
+                    // 需要镜像一下，改成大端模式
                     var uint64 = patterns[i].substr(j*16,16);
                     out.push('  0x');
-                    out.push(uint64);
+                    for (var k = 7; k >= 0; k--) {
+                        out.push(uint64.substr(k*2, 2));
+                    }
+                    // out.push(uint64);
                     out.push(',\n');
                 }
                 out.push(' \n');
@@ -105,9 +93,10 @@ $(function () {
             out.pop();
             out.pop();
             out.push('\n};\n');
-            out.push('const int IMAGES_LEN = sizeof(IMAGES)/8;\n');
+            // out.push('const int example_len = sizeof(example)/8;\n');
             return out.join('');
         },
+        // patter: 64位hex数据; code: arduino uint8_t 数组, 大端模式显示
         patternsToCodeUint8Array: function (patterns) {
             var out = ['uint8_t example[] = {\n'];
             for (var i = 0; i < patterns.length; i++) {
@@ -116,7 +105,7 @@ $(function () {
                 for (var j = 0; j < 8; j++) {
                     var uint8x8 = patterns[i].substr(j*16,16);
                     out.push('    ');
-                    for (var k = 0; k<8;k++){
+                    for (var k = 7; k >= 0; k--){
                         var uint8 = uint8x8.substr(k*2,2);
                         out.push('0x');
                         out.push(uint8);
@@ -124,10 +113,7 @@ $(function () {
                     }
                     out.push(' \n');
                 }
-                // out.pop();
-                // out.pop();
                 out.push(' \n');
-                // out.push(',');
             }
             out.pop();
             out.pop();
@@ -135,11 +121,10 @@ $(function () {
             out.push('\n};\n');
             return out.join('');
         },
+        // pattern去格式
         fixPattern: function (pattern) {
-            // pattern = pattern.replace(/[^0-9a-fA-F]/g, '0');
             pattern = pattern.replace(/0x/g, '');
             pattern = pattern.replace(/,/g, '');
-            // return ('0000000000000000' + pattern).substr(-16);
             return pattern;
         },
         fixPatterns: function (patterns) {
@@ -149,38 +134,24 @@ $(function () {
             return patterns;
         }
     };
-
+    // ???
     function makeFrameElement(pattern) {
         pattern = converter.fixPattern(pattern);
         return $(converter.patternToFrame(pattern)).click(onFrameClick);
     }
-
+    // 将led点图的对应值输出到hexinput栏
     function ledsToHex() {
         var out = [];
-        
         for (var i = 1; i < 9; i++) {
             var byte = [];
-            // byte += '{';
             for (var j = 1; j < 9; j++) {
-                // var active = $leds.find('.item[data-row=' + i + '][data-col=' + j + '] ').hasClass('active');
-                // byte.push(active ? '1' : '0');
                 byte.push(getColors(i,j));
-                // byte += getColors(i,j);
-                // byte += ',';
             }
-            // byte -= ',';
-            // byte += '}, ';
-            // byte.push('}, ');
-            // byte.reverse();颠倒顺序
-            // byte = parseInt(byte.join(''), 16).toString(16);
-            // byte = ('0' + byte).substr(-2);
-            // byte = byte.substr(0, -2);
             out.push(byte);
         }
-        // out.reverse();
         $hexInput.val(out);
     }
-
+    // 获得led点图中某个点的颜色值，16进制字符串
     function getColors(i, j) {
         var temp_color = $leds.find('[data-row=' + i + '][data-col=' + j + '] ').attr('data-color');
         var colors_hex = [];
@@ -188,16 +159,12 @@ $(function () {
         colors_hex.push(('00' + parseInt(temp_color, 10).toString(16)).substr(-2));
         return colors_hex.join('');
     }
-
+    // hexinput栏输出到led点图
     function hexInputToLeds() {
         var val = getInputHexValue();
         // val is string with 128 characters, 2 characters mean 1 color
         for (var i = 1; i < 9; i++) {
-            // var byte = val.substr(-2 * i, 2);
-
-            // byte = parseInt(byte, 16);
             for (var j = 1; j < 9; j++) {
-                // var active = !!(byte & 1 << (j - 1));
                 var temp_color = val.substr(((i-1)*16+(j-1)*2), 2);
                 temp_color = parseInt(temp_color, 16).toString();
                 $leds.find('[data-row=' + i + '][data-col=' + j + '] ').attr('data-color', temp_color);
@@ -207,7 +174,6 @@ $(function () {
                 else {
                     $leds.find('[data-row=' + i + '][data-col=' + j + '] ').removeClass().addClass('item color-'+temp_color);                    
                 }
-                // $leds.find('[data-row=' + i + '][data-col=' + j + '] ').toggleClass('active', active);
             }
         }
     }
@@ -225,7 +191,7 @@ $(function () {
             $('#output').val(code);
         }
     }
-
+    // pattern: 64位hex数据; frame: 略缩图
     function framesToPatterns() {
         var out = [];
         $frames.find('.frame').each(function () {
@@ -277,6 +243,7 @@ $(function () {
         return converter.fixPattern($hexInput.val());
     }
 
+    // 略缩图点击后，获取略缩图的data-hex，输出到hexinput栏，再输出到led点图
     function onFrameClick() {
         // $hexInput.val($(this).attr('data-hex'));
         var out=[];
