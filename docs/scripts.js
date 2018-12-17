@@ -79,12 +79,16 @@ $(function () {
             for (var i = 0; i < patterns.length; i++) {
                 // 128 characters => 64bytes => 8 * uint64_t
                 for (var j = 0; j < 8; j++) {
-                    // 需要镜像一下，改成大端模式
                     var uint64 = patterns[i].substr(j*16,16);
                     out.push('  0x');
+                    // 大端模式代码
                     for (var k = 7; k >= 0; k--) {
                         out.push(uint64.substr(k*2, 2));
                     }
+                    // 小端模式代码
+                    // for (var k = 0; k < 8; k++) {
+                    //     out.push(uint64.substr(k*2, 2));
+                    // }
                     // out.push(uint64);
                     out.push(',\n');
                 }
@@ -96,7 +100,7 @@ $(function () {
             // out.push('const int example_len = sizeof(example)/8;\n');
             return out.join('');
         },
-        // patter: 64位hex数据; code: arduino uint8_t 数组, 大端模式显示
+        // patter: 8位hex数据; code: arduino uint8_t 数组, 大端模式显示
         patternsToCodeUint8Array: function (patterns) {
             var out = ['uint8_t example[] = {\n'];
             for (var i = 0; i < patterns.length; i++) {
